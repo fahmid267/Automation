@@ -1,0 +1,860 @@
+{
+  "name": "Cold Email (Personalized) - Final",
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1z5aMaDAbQoq866n4-sFo0xBXUgDeLOBYjAG64Gi_VDk",
+          "mode": "list",
+          "cachedResultName": "leads_all_countries_free",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z5aMaDAbQoq866n4-sFo0xBXUgDeLOBYjAG64Gi_VDk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1349593272,
+          "mode": "list",
+          "cachedResultName": "leads_all_countries_free.csv",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z5aMaDAbQoq866n4-sFo0xBXUgDeLOBYjAG64Gi_VDk/edit#gid=1349593272"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5776,
+        1872
+      ],
+      "id": "8bf5e33e-47dd-4cd5-a7a1-e77791b96aa2",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n\nreturn items.map(item => {\n  const raw = item.json.email;\n  let emails = [];\n\n  if (Array.isArray(raw)) {\n    emails = raw;\n  } else if (typeof raw === 'string') {\n    const str = raw.trim();\n    if (str.startsWith('[')) {\n      try {\n        const parsed = JSON.parse(str);\n        if (Array.isArray(parsed)) emails = parsed;\n      } catch (e) {\n        // not valid JSON, fall through to delimiter split\n      }\n    }\n    if (emails.length === 0 && str.length > 0) {\n      emails = str.split(/[,;|\\n]+/);\n    }\n  }\n\n  emails = [...new Set(\n    emails\n      .map(e => String(e).trim().toLowerCase())\n      .filter(e => e.length > 0 && emailRegex.test(e))\n  )];\n\n  return {\n    json: {\n      ...item.json,\n      emailList: emails,\n      emailCount: emails.length\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5552,
+        1872
+      ],
+      "id": "f24de479-03d0-420a-8c3d-c7589a4a317d",
+      "name": "Parse Emails1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -5328,
+        1872
+      ],
+      "id": "11cdf3ca-37ff-428c-a205-0464ec8e40d1",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d84c0145-3d16-4fec-bbd2-aa50cfda3185",
+              "leftValue": "={{ $json.mail_status }}",
+              "rightValue": "mailed",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5104,
+        1504
+      ],
+      "id": "add8bc08-a083-4ef7-8cae-89551491857d",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-multi-email",
+              "leftValue": "={{ $('If1').item.json.emailCount }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -4880,
+        1504
+      ],
+      "id": "d9a12d49-56f6-4254-ba3c-43a600c87404",
+      "name": "Has Multiple Emails?1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Company context: \nName: {{ $json.agency_name || 'Unknown company' }}\nWebsite: {{ $json.website }}\nCompany type: {{ $json.company_type }}\nOffice type: {{ $json.office_type }}\n\nCandidate email addresses for this company:\n{{ $json.emailList.join('\\n') }}\n\nSelection rules, in priority order:\n\nTIER 1 (best): partnerships@, partners@, businessdevelopment@, newbusiness@, sales@, business@, commercial@, growth@, enterprise@, procurement@, tenders@, or any named individual whose address clearly indicates a BD/partnerships/sales role.\n\nTIER 2 (good): a named individual likely involved in business decisions, a regional sales/BD contact, or a clearly commercial-sounding general address.\n\nTIER 3 (fallback): contact@, hello@, info@, enquiries@, inquiries@, office@, general@.\n\nTIER 4 (last resort, only if nothing better exists): support@, help@, service@, admin@, customer...@.\n\nAVOID entirely unless it is the only option: privacy@, dpo@, legal@, compliance@, security@, abuse@, press@, media@, investor@, careers@, jobs@, hr@, billing@, accounts@, finance@, noreply@, webmaster@.\n\nRules:\n- Choose exactly ONE address from the list above. Never invent, modify, or guess an address that isn't in the list.\n- If the list has only one usable address, return it.\n- If the list is empty, return null.\n- Always return the address in lowercase.\n\nRespond with ONLY this JSON object, nothing else — no explanation, no markdown:\n{\"selected_email\": \"chosen@example.com\"}",
+        "options": {
+          "systemMessage": "You are an email-selection specialist for Tri-Tech IT, a software development company seeking business partnerships, subcontracting, white-label development, and revenue-sharing collaborations with other companies and agencies. Given a list of candidate email addresses for ONE company, your only job is to pick the single best address for a partnership/business-development outreach. Always respond with ONLY a JSON object — never any explanation or commentary."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -4656,
+        1376
+      ],
+      "id": "53610c3e-886c-46ff-a468-cf09e2dbdb48",
+      "name": "AI Agent "
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -4592,
+        1616
+      ],
+      "id": "9c9bc7c3-d68f-42e0-a84d-a28c9040f3f9",
+      "name": "OpenAI Chat Model ",
+      "credentials": {
+        "openAiApi": {
+          "id": "zYskn9b9Rc1l37CO",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const original = $('Loop Over Items1').item.json;\nconst raw = ($json.output || $json.text || '').toString();\nlet selected = null;\nlet emailSubject = null;\nlet emailBody = null;\n\ntry {\n  const cleaned = raw.replace(/```json|```/g, '').trim();\n  const parsed = JSON.parse(cleaned);\n  selected = parsed.selected_email || null;\n  emailSubject = parsed.email_subject ? String(parsed.email_subject).trim() : null;\n  emailBody = parsed.email_body ? String(parsed.email_body).trim() : null;\n} catch (e) {\n  const match = raw.match(/[^\\s\"]+@[^\\s\"]+\\.[^\\s\"]+/);\n  if (match) selected = match[0];\n}\n\nreturn [{\n  json: {\n    ...original,\n    selectedEmail: selected ? selected.trim().toLowerCase() : null,\n    emailSubject,\n    emailBody\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4304,
+        1376
+      ],
+      "id": "e0a9cc6f-d990-4364-9d8b-6d659415290f",
+      "name": "Extract Selected Email1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-valid-email",
+              "leftValue": "={{ $json.selectedEmail }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -4080,
+        1568
+      ],
+      "id": "558788ee-8c3d-4732-b229-00278237c083",
+      "name": "Has Valid Email?1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ---- CONFIG ---------------------------------------------------------------\nconst FROM_EMAIL = \"contact@tritechit.online\"; // must be a VERIFIED \"Send mail as\" alias in the Gmail account\nconst FROM_NAME = \"TriTech\";\nconst TEST_MODE = false; // true = send to TEST_TO; false = send to the selected lead email\nconst TEST_TO = \"fahmid267@gmail.com\";\nconst SUBJECT = \"Cold Email Test\"; // fallback subject if the AI subject is missing\n\n// Node names (change here if you rename them)\nconst NODE_AGENT = \"AI Agent\"; // agent 2 (email writer)\nconst NODE_LOOP = \"Loop Over Items1\"; // original lead row\nconst NODE_VALID = \"Has Valid Email?1\"; // carries selectedEmail\nconst NODE_SIGNATURE = \"Get Email Signature1\";\n// ---------------------------------------------------------------------------\n\n// Read from a specific upstream node (works regardless of what sits directly before this node)\nconst fromNode = (name) => {\n  try {\n    return $(name).item.json;\n  } catch (e) {\n    try {\n      return $(name).first().json;\n    } catch (e2) {\n      return {};\n    }\n  }\n};\n\nconst lead = fromNode(NODE_LOOP);\nconst selectedEmail = fromNode(NODE_VALID).selectedEmail || lead.selectedEmail || null;\n\nconst to = TEST_MODE ? TEST_TO : selectedEmail;\nif (!to) throw new Error(\"No recipient email found for this item\");\n\nconst agency = lead.agency_name ? String(lead.agency_name).trim() : \"\";\n\n// ---- Parse the personalized email written by agent 2 ------------------------\nconst agentJson = fromNode(NODE_AGENT);\nconst agentRaw = String(agentJson.output || agentJson.text || \"\").trim();\n\nlet aiSubject = \"\";\nlet aiBody = \"\";\nlet aiCompany = \"\"; // confirmed company name from agent 2 (web-search verified)\ntry {\n  const cleaned = agentRaw.replace(/```json|```/gi, \"\").trim();\n  let parsed;\n  try {\n    parsed = JSON.parse(cleaned);\n  } catch (e) {\n    const m = cleaned.match(/\\{[\\s\\S]*\\}/); // JSON object buried in extra text\n    parsed = m ? JSON.parse(m[0]) : {};\n  }\n  aiSubject = parsed.email_subject ? String(parsed.email_subject) : \"\";\n  aiBody = parsed.email_body ? String(parsed.email_body) : \"\";\n  aiCompany = parsed.company_name ? String(parsed.company_name).replace(/\\*\\*/g, \"\").replace(/[\\r\\n]+/g, \" \").trim() : \"\";\n} catch (e) {\n  // unparseable: fall back to the generic template below\n}\n\naiSubject = aiSubject.replace(/[\\r\\n]+/g, \" \").replace(/^[\"'\\s]+|[\"'\\s]+$/g, \"\").slice(0, 120);\n\n// The greeting and sign-off are added here, so strip them if the AI included them anyway\naiBody = aiBody\n  .replace(/\\r\\n/g, \"\\n\")\n  .replace(/^\\s*(dear|hello|hi)\\b[^\\n]*\\n+/i, \"\")\n  .replace(/\\n+\\s*(kind|best|warm|many)\\s+regards,?[\\s\\S]*$/i, \"\")\n  .replace(/\\n+\\s*(sincerely|regards|thanks|thank you),?[\\s\\S]*$/i, \"\")\n  .trim();\n\n// Web search can leak citations/links into the text: keep link text, drop the URL (mailto links are left alone)\naiBody = aiBody\n  .replace(/\\s*\\(\\[[^\\]]*\\]\\([^)]*\\)\\)/g, \"\")\n  .replace(/\\[([^\\]]*)\\]\\((?!mailto)[^)]*\\)/g, \"$1\")\n  .trim();\n\n// Company name to use in the email: the confirmed name from agent 2, or the spreadsheet name as a fallback\nconst displayName = aiCompany || agency;\n\n// ---- Generic template (used only if the AI body is missing) -----------------\nconst genericBody = `Dear concerned,\n\nWe, TriTech, are reaching out to explore the possibility of establishing a strategic technology partnership with ${agency ? \"@@AGENCY@@\" : \"your company\"}.\n\nTriTech provides software and technology solutions for businesses looking to develop, enhance, or scale their digital products. Our capabilities span software development, web and mobile applications, business automations, AI-driven solutions, and other tailored technology requirements.\n\nWe see potential for a complementary relationship between our organizations, particularly where software development and technical delivery can support broader client engagements and business opportunities. Depending on the nature of the engagement, we can work alongside existing teams or take responsibility for the technical development and delivery of a project, with the commercial structure tailored to the partnership.\n\nYou can learn more about TriTech and our capabilities at:\nwww.tritechit.online\n\nIf this aligns with your business model, we would be glad to arrange a brief conversation to explore potential areas of collaboration and discuss how such a partnership could be structured.\n\nKind regards,`;\n\nconst body = aiBody ? `Dear concerned,\\n\\n${aiBody}\\n\\nKind regards,` : genericBody;\n\n// ---- Signature (same handling as before) ------------------------------------\nlet signature = \"\";\ntry {\n  signature = $(NODE_SIGNATURE).first().json.signature || \"\";\n} catch (e) {}\n\n// replace the Gmail address wherever it appears in the signature\nsignature = signature.replace(/tritech\\.it\\.info(@|%40)gmail\\.com/gi, \"contact@tritechit.online\");\n\n// force the link whose visible text is the webmail address to use it\nsignature = signature.replace(/<a\\b([^>]*)>([\\s\\S]*?)<\\/a>/gi, (m, attrs, inner) =>\n  /contact@tritechit\\.online/i.test(inner)\n    ? `<a${attrs.replace(/\\s*href\\s*=\\s*(\"[^\"]*\"|'[^']*')/i, \"\")} href=\"mailto:contact@tritechit.online\">${inner}</a>`\n    : m\n);\n\n// ---- Plain text -> HTML (bold company name, hyperlinks, line breaks) --------\nconst escHtml = (s) => s.replace(/&/g, \"&amp;\").replace(/</g, \"&lt;\").replace(/>/g, \"&gt;\");\nconst escRegex = (s) => s.replace(/[.*+?^${}()|[\\]\\\\]/g, \"\\\\$&\");\n\n// 1) protect the email address and website so they can be turned into links after escaping\nlet text = body\n  .replace(/contact@tritechit\\.online/gi, \"@@MAIL@@\")\n  .replace(/(?:https?:\\/\\/)?(?:www\\.)?tritechit\\.online\\/?/gi, \"@@SITE@@\");\n\n// 2) escape, then apply **bold** and the placeholders\nlet html = escHtml(text)\n  .replace(/\\*\\*([^*\\n]+?)\\*\\*/g, \"<b>$1</b>\")\n  .replace(/@@AGENCY@@/g, () => `<b>${escHtml(agency)}</b>`)\n  .replace(/@@SITE@@/g, '<a href=\"https://www.tritechit.online\">www.tritechit.online</a>')\n  .replace(/@@MAIL@@/g, '<a href=\"mailto:contact@tritechit.online\">contact@tritechit.online</a>');\n\n// 3) make sure the company name is bold on first mention, even if the AI forgot the ** markers\nif (aiBody && agency.length >= 3) {\n  const boldAgency = `<b>${escHtml(agency)}</b>`;\n  if (!html.includes(boldAgency)) {\n    const re = new RegExp(`(?<![\\\\w>])${escRegex(escHtml(agency))}(?![\\\\w<])`);\n    html = html.replace(re, () => boldAgency);\n  }\n}\n\n// 4) same check for the confirmed company name when it differs from the spreadsheet name\nif (aiBody && displayName !== agency && displayName.length >= 3) {\n  const boldDisplay = `<b>${escHtml(displayName)}</b>`;\n  if (!html.includes(boldDisplay)) {\n    const reDisplay = new RegExp(`(?<![\\\\w>])${escRegex(escHtml(displayName))}(?![\\\\w<])`);\n    html = html.replace(reDisplay, () => boldDisplay);\n  }\n}\n\nconst htmlBody =\n  '<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;\">' +\n  html.replace(/\\r?\\n/g, \"<br>\\n\") +\n  \"<br><br>\" +\n  signature +\n  \"</div>\";\n\n// ---- MIME / encoding (unchanged) --------------------------------------------\n// RFC 2047 encoding so non-ASCII characters in headers survive\nconst encHeader = (s) =>\n  /^[\\x20-\\x7E]*$/.test(s) ? s : `=?UTF-8?B?${Buffer.from(s, \"utf-8\").toString(\"base64\")}?=`;\n\n// Body as base64 (wrapped at 76 chars) so characters like ’ are safe\nconst bodyB64 = Buffer.from(htmlBody.replace(/\\r?\\n/g, \"\\r\\n\"), \"utf-8\")\n  .toString(\"base64\")\n  .match(/.{1,76}/g)\n  .join(\"\\r\\n\");\n\nconst subject = aiSubject || SUBJECT;\n\nconst message = [\n  `From: ${encHeader(FROM_NAME)} <${FROM_EMAIL}>`,\n  `To: ${to}`,\n  `Subject: ${encHeader(subject)}`,\n  \"MIME-Version: 1.0\",\n  \"Content-Type: text/html; charset=UTF-8\",\n  \"Content-Transfer-Encoding: base64\",\n  \"\",\n  bodyB64,\n].join(\"\\r\\n\");\n\n// base64url, as required by the Gmail API \"raw\" field\nconst raw = Buffer.from(message, \"utf-8\")\n  .toString(\"base64\")\n  .replace(/\\+/g, \"-\")\n  .replace(/\\//g, \"_\")\n  .replace(/=+$/, \"\");\n\nreturn {\n  json: {\n    ...lead,\n    selectedEmail,\n    emailSubject: subject,\n    usedGenericFallback: !aiBody,\n    raw,\n  },\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3056,
+        1568
+      ],
+      "id": "2cb67ab8-1a9d-410f-a602-bf8ed64df6e8",
+      "name": "Build Raw Email1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ raw: $('Build Raw Email1').item.json.raw }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2832,
+        1568
+      ],
+      "id": "b8cefd7d-9efb-4fbf-bbbc-f027abc60f51",
+      "name": "Send via Gmail API1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NK3P4wYboT2yocBE",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e5f6a7b8-5555-4a55-9a55-555555555555",
+              "name": "selectedEmail",
+              "value": "={{ $json.emailList && $json.emailList.length > 0 ? $json.emailList[0] : null }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4304,
+        1632
+      ],
+      "id": "46aee74b-0345-45de-bdf3-4404a7df16ff",
+      "name": "Use Single Email1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1z5aMaDAbQoq866n4-sFo0xBXUgDeLOBYjAG64Gi_VDk",
+          "mode": "list",
+          "cachedResultName": "leads_all_countries_free",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z5aMaDAbQoq866n4-sFo0xBXUgDeLOBYjAG64Gi_VDk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1349593272,
+          "mode": "list",
+          "cachedResultName": "leads_all_countries_free.csv",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1z5aMaDAbQoq866n4-sFo0xBXUgDeLOBYjAG64Gi_VDk/edit#gid=1349593272"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Get row(s) in sheet1').item.json.row_number }}",
+            "mail_status": "mailed"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "country",
+              "displayName": "country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "city",
+              "displayName": "city",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "agency_name",
+              "displayName": "agency_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "website",
+              "displayName": "website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "address",
+              "displayName": "address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "office_type",
+              "displayName": "office_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "osm_type",
+              "displayName": "osm_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "osm_id",
+              "displayName": "osm_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company_type",
+              "displayName": "company_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "mail_status",
+              "displayName": "mail_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2608,
+        1744
+      ],
+      "id": "756f1aa1-a17d-48d4-8160-bb4d7238a0b0",
+      "name": "Update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "extract",
+        "urls": [
+          "={{ $('Get row(s) in sheet1').item.json.website }}"
+        ],
+        "options": {}
+      },
+      "type": "@tavily/n8n-nodes-tavily.tavily",
+      "typeVersion": 1,
+      "position": [
+        -3856,
+        1568
+      ],
+      "id": "392f5b42-f326-4530-afe5-dee396c0d0ec",
+      "name": "Extract1",
+      "credentials": {
+        "tavilyApi": {
+          "id": "wedBafsUcfbdu5Dd",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a personalized partnership outreach email from TriTech to the company below.\n\nCOMPANY CONTEXT\nName: {{ $('Loop Over Items1').item.json.agency_name || 'Unknown company' }}\nWebsite: {{ $('Loop Over Items1').item.json.website }}\nCompany type: {{ $('Loop Over Items1').item.json.company_type }}\nOffice type: {{ $('Loop Over Items1').item.json.office_type }}\nLocation: {{ $('Loop Over Items1').item.json.city }}, {{ $('Loop Over Items1').item.json.country }}\n\nWEBSITE CONTENT (extracted from the company's site; may be partial, noisy, navigation-heavy, or empty):\n\"\"\"\n{{ (($json.results || [])[0]?.raw_content || 'No website content available.').toString().replace(/!\\[[^\\]]*\\]\\([^)]*\\)/g, '').replace(/\\[([^\\]]*)\\]\\([^)]*\\)/g, '$1').slice(0, 6000) }}\n\"\"\"\n\nABOUT TRITECH (the sender)\n- TriTech provides software and technology solutions for businesses looking to develop, enhance, or scale their digital products.\n- Capabilities: software development, web and mobile applications, business automations, AI-driven solutions, and other tailored technology requirements.\n- TriTech seeks a strategic technology partnership: it can work alongside the company's existing team, or take responsibility for the technical development and delivery of a project, with the commercial structure tailored to the partnership.\n- Website: www.tritechit.online\n\nSTEP 1A - UNDERSTAND THE COMPANY\nFrom the website content, work out what the company actually does: its main services, industries, typical clients, and markets. Ignore navigation menus, cookie notices, careers/job-ad text, and boilerplate. Identify where software development, automation, or AI work could naturally support its client engagements.\n\nSTEP 1B - CONFIRM THE COMPANY NAME\nThe name in the spreadsheet may contain redundant text next to the real name (for example a full form, a link, a tagline, a legal suffix, or extra words). Work out the company's actual, commonly used name:\n- First check the website content and the website address above. If the name is clear there, use it.\n- If it is still unclear, or the spreadsheet name looks wrong or padded, use web search to verify the real name of this company.\n- If the spreadsheet name already matches the real name, keep it exactly as given.\n- Use the short, abbreviated and natural name a person would use in an email (for example \"Adience\", not \"Adience | B2B Market Research London\"). Keep a legal suffix such as Ltd or Inc only if it is part of how the company normally refers to itself.\n- If you cannot verify a better name, use the spreadsheet name with only the obviously redundant parts removed. Never invent a name.\nUse this confirmed name everywhere in the email body, and return it in \"company_name\".\n\nSTEP 2 - WRITE THE EMAIL BODY\nStructure (3 to 4 short paragraphs, about 130 to 190 words in total):\n1. Opening: say that TriTech is reaching out to explore a strategic technology partnership with the company, and name the company.\n2. Relevance: show that you understand what the company does, using one or two specific and accurate details from the website content (a service, an industry, a type of client), then explain concretely why a software development partner is relevant to that work.\n3. How TriTech can help: briefly describe what TriTech does and how it could support the company, for example extra delivery capacity, technical expertise the company may not have in-house, faster delivery for its clients, or new service lines it can offer without hiring. Mention that TriTech can work alongside existing teams or own the technical delivery of a project, with the commercial structure tailored to the partnership.\n4. Call to action: invite them to learn more at www.tritechit.online and propose a brief conversation to explore areas of collaboration. Keep it low-pressure.\n\nIf the website content is empty, unreadable, or unhelpful, do not guess details. Use only the company name, company type, and office type, and write a shorter, more general (but still relevant) version of the same structure. Never mention that content was missing or that the email was generated.\n\nSTYLE RULES\n- Professional, warm, direct, plain English. No buzzword stacking, no hype, no flattery (\"I love your website\"), no exclamation marks, no emojis.\n- Only state facts that appear in the website content or the context above. Never invent clients, projects, awards, numbers, or claims about the company or about TriTech.\n- Position this as a partnership of mutual benefit, not a one-off service pitch.\n- Do NOT write a greeting line (\"Dear ...\", \"Hello ...\") and do NOT write a sign-off or signature (\"Kind regards\", \"Best regards\", names). Both are added automatically.\n- Bold the company's name once, on its first mention, by wrapping it in double asterisks, like **Company Name**. Use no other bold, markdown, HTML, bullets, or headings.\n- Write the website as plain text exactly once: www.tritechit.online (no https://, no markdown or HTML link). The system turns it into a hyperlink automatically.\n- Separate paragraphs with a blank line (write \\n\\n inside the JSON string).\n- Write in English.\n- Write as a team, in the first-person plural (\"we\", \"us\", \"our\") throughout, because the email comes from TriTech as a company. Never use \"I\", \"me\", \"my\", \"I'm\", \"I'd\", \"I've\", or \"I'll\". For example, write \"We are reaching out\", \"we would be glad to\", \"our team\", and \"contact us\", not \"I am reaching out\", \"I would be glad to\", \"my team\", or \"contact me\".\n- Never use the em dash character (—). Where you would use one, write a full stop, a comma, or \"and\"/\"which\" instead, and keep sentences short and simple. Other types of hyphens are fine where needed.\n- If you use web search, use it only to confirm the company name or its core business. Do not paste URLs, citations, source labels, or markdown links into the email.\n\nSUBJECT LINE\nUnder 70 characters, specific to the company or its field (for example referencing its main service or industry), not clickbait, no ALL CAPS, no \"Re:\" or \"Fwd:\".\n\nRespond with ONLY this JSON object, nothing else - no explanation, no markdown fences:\n{\"company_name\": \"confirmed company name\", \"email_subject\": \"subject line\", \"email_body\": \"paragraph one\\n\\nparagraph two\\n\\nparagraph three\"}",
+        "options": {
+          "systemMessage": "You are a B2B partnership outreach copywriter for Tri-Tech IT, a software development company seeking strategic technology partnerships with other companies and agencies. Given information about ONE target company, including text extracted from its website, you write a short, personalized cold outreach email that shows why TriTech is relevant to that specific company, what TriTech does, and how a partnership could help. Your tone is professional, warm, concise, and credible, never salesy or generic. Base all personalization strictly on the information you are given: never invent facts, clients, projects, or numbers about the company or about TriTech, and when information is thin, write a shorter, general version instead of guessing. Follow the formatting rules in the prompt exactly: write only the email body paragraphs and a subject line, with no greeting and no sign-off, because those are added automatically. Always write in the first-person plural voice (\"we\", \"us\", \"our\") as the TriTech team, never in the first-person singular. Write like a person: never use the em dash character (—). The company name in the spreadsheet may contain redundant text, so confirm the company's real, commonly used name from its website content (and web search if needed) and use that name in the email. Always respond with ONLY a JSON object containing \"email_subject\" and \"email_body\" - never any explanation, commentary, or markdown fences."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -3632,
+        1568
+      ],
+      "id": "1f286f54-52a7-4739-b3ad-c82f031ae42e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {
+          "webSearch": {
+            "searchContextSize": "medium"
+          }
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -3568,
+        1808
+      ],
+      "id": "61b0ea20-1b47-41a8-acbd-2048cccf8a25",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "zYskn9b9Rc1l37CO",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/settings/sendAs/contact@tritechit.online",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "gmailOAuth2",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -3280,
+        1568
+      ],
+      "id": "fec3a56b-8aff-4555-97af-4e82c7119eb9",
+      "name": "Get Email Signature1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "NK3P4wYboT2yocBE",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d6406f29-1646-4fd3-9026-4b9784ffaa11",
+              "leftValue": "={{ (() => {\n  const today = $now.startOf('day');\n  let d = DateTime.fromISO('2026-10-14', { zone: $now.zone }).startOf('day'); // first run day, change if needed\n  if (d.weekday === 7) d = d.plus({ days: 1 });\n  for (let i = 0; i < 5000 && d < today; i++) {\n    d = d.plus({ days: 3 });                       // next run in the 3-day cycle\n    if (d.weekday === 7) d = d.plus({ days: 1 });  // Sunday -> Monday, cycle continues from Monday\n  }\n  return d.hasSame(today, 'day');\n})() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -6000,
+        1872
+      ],
+      "id": "bfb29bd8-c014-4f73-aa58-2b91e758502c",
+      "name": "Is Run Day?"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 16,22 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -6224,
+        1872
+      ],
+      "id": "b9edb031-1917-474b-b1a4-58527af15e09",
+      "name": "Schedule Trigger1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Parse Emails1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Emails1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Has Multiple Emails?1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Multiple Emails?1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent ",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Use Single Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent ": {
+      "main": [
+        [
+          {
+            "node": "Extract Selected Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model ": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent ",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Selected Email1": {
+      "main": [
+        [
+          {
+            "node": "Has Valid Email?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Valid Email?1": {
+      "main": [
+        [
+          {
+            "node": "Extract1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Raw Email1": {
+      "main": [
+        [
+          {
+            "node": "Send via Gmail API1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Single Email1": {
+      "main": [
+        [
+          {
+            "node": "Has Valid Email?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Get Email Signature1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Email Signature1": {
+      "main": [
+        [
+          {
+            "node": "Build Raw Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Is Run Day?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Run Day?": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send via Gmail API1": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "3e83d631-3306-460c-8af2-88edd3b3004c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d5289254a43d6bca36c8ee8dbf281f43de068a5ccd6c63ac471fb234fd2b6ff0"
+  },
+  "nodeGroups": [],
+  "id": "aWO5tvamJdZovCIg",
+  "tags": []
+}
