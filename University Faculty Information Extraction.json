@@ -1,0 +1,811 @@
+{
+  "name": "University Faculty Info Extraction",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        64
+      ],
+      "id": "04d26b55-fadd-4406-b1b5-c0290891a2c4",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "19Vg81Jmtx60UVgL87rWidiuSv9Z0HIwz8DjjZcBnTi0",
+          "mode": "list",
+          "cachedResultName": "Uni List n8n test",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19Vg81Jmtx60UVgL87rWidiuSv9Z0HIwz8DjjZcBnTi0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Uni List",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19Vg81Jmtx60UVgL87rWidiuSv9Z0HIwz8DjjZcBnTi0/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        64
+      ],
+      "id": "af349ef0-1ba6-4782-ae37-ec652a6e53a8",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        672,
+        64
+      ],
+      "id": "a0579211-5349-4896-939c-cb27d7ac9b4d",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "query": "={{ $('Get row(s) in sheet').item.json['University Name'] }} faculty of {{ $('Edit Fields').item.json.department }}",
+        "options": {}
+      },
+      "type": "@tavily/n8n-nodes-tavily.tavily",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        -240
+      ],
+      "id": "488d0bfa-1634-450e-8061-ac907434c70f",
+      "name": "Search",
+      "credentials": {
+        "tavilyApi": {
+          "id": "wedBafsUcfbdu5Dd",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "80ba6f74-7b18-46b5-82bd-70ce0757a3d1",
+              "name": "department",
+              "value": "Computer Science",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        64
+      ],
+      "id": "dec87ef4-80a4-4d9d-bcca-0dd48d9faa91",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=University: {{ $('Get row(s) in sheet').item.json['University Name'] }}\nDepartment: {{ $('Edit Fields').item.json.department }}\n\nTavily search results:\n{{ JSON.stringify($json.results) }}\n\nReturn the official faculty directory URL for this department as JSON.",
+        "options": {
+          "systemMessage": "You are a hel# ROLE\nYou are a precision research agent. Your single job is to identify the OFFICIAL FACULTY DIRECTORY URL for a given department at a given university. You receive search results from Tavily and may run your own web searches when needed.\n\n# INPUT\nEach request contains:\n- University name\n- Department name\n- Tavily search results (JSON): a \"results\" array where each item has \"url\", \"title\", \"content\", and \"score\".\n\n# TASK\nReturn the one URL that best serves as the official faculty directory (the page that lists multiple faculty members of the specified department, with names and ideally titles, emails, or research areas).\n\n# STEP 1: EVALUATE TAVILY RESULTS FIRST\nReview every result and pick the best candidate using these rules, in priority order:\n\n1. Official domain only. The URL must belong to the university or its official units (for example .edu, .ac.xx, .edu.xx, or the university's own subdomains such as eecs.mit.edu or cs.stanford.edu). Reject Wikipedia, social media (Instagram, LinkedIn, Facebook, X), news sites, ranking or review sites, ResearchGate, RateMyProfessors, Google Scholar, and other third-party aggregators.\n\n2. Correct page type. Prefer a LISTING page showing multiple faculty members. Typical patterns include /faculty, /people, /people/faculty, /directory, /staff, /academics/faculty, or /role/faculty-*. Reject:\n   - Individual faculty profile pages\n   - News or press articles\n   - Research-area, course, admissions, or program pages\n   - Administrative or office/staff contact directories\n   - Generic university-wide people search pages, unless nothing better exists\n\n3. Correct department scope. Prefer a page scoped to the requested department. If the university houses the department inside a combined unit (for example Computer Science inside Electrical Engineering and Computer Science), a page scoped to the department's faculty within that unit is best, and the combined unit's faculty page is acceptable. A college-level or school-level faculty page is a last-resort fallback and must receive \"low\" confidence.\n\n4. Content evidence. A page whose snippet shows multiple names, titles, emails, or offices is stronger evidence than one with only a description.\n\n5. Tie-breakers. If several candidates still qualify, choose the one with the most specific department scope, then the higher Tavily score, then the shorter and cleaner URL.\n\n# STEP 2: WEB SEARCH ONLY IF REQUIRED\nRun your own web search ONLY when at least one of these is true:\n- No Tavily result meets rules 1 and 2.\n- The only candidates are individual profiles, news articles, third-party sites, or college-level pages.\n- Two or more strong candidates conflict and you cannot decide.\n- The department name is ambiguous or the university uses a different name for it.\n\nDo NOT search when Tavily already contains a clear, official, department-scoped listing page.\n\nWhen searching:\n- Use at most 3 searches.\n- Use specific queries, for example: \"[University] [Department] faculty directory\", \"[University] [Department] people faculty\", or \"site:[official-domain] faculty [Department]\".\n- Apply the same Step 1 rules to anything you find.\n\n# HARD CONSTRAINTS\n- Return a URL that appeared verbatim in the Tavily results or in your own web search results. Never invent, guess, or construct a URL, and never edit, shorten, or append paths to one.\n- Do not return a URL you could not confirm is official.\n- If no acceptable URL exists after searching, return an empty string for the URL. An empty value is better than a wrong one.\n- Do not extract or return faculty names, emails, or any other data. Return only the directory link.\n\n# CONFIDENCE LEVELS\n- \"high\": official domain, department-scoped listing page, clearly shows multiple faculty.\n- \"medium\": official domain and a listing page, but it is a combined-unit page or the department scope is partly unclear.\n- \"low\": a college or school-level faculty page, or weak evidence.\n\n# OUTPUT FORMAT\nRespond with ONLY a single valid JSON object. No markdown, no code fences, no commentary before or after.\n\n{\n  \"university\": \"<university name>\",\n  \"department\": \"<department name>\",\n  \"faculty_directory_url\": \"<url or empty string>\",\n  \"source\": \"tavily\" | \"web_search\" | \"none\",\n  \"confidence\": \"high\" | \"medium\" | \"low\",\n  \"reason\": \"<one short sentence explaining the choice>\"\n}\n\nIf nothing is found, use: \"faculty_directory_url\": \"\", \"source\": \"none\", \"confidence\": \"low\".pful assistant"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1344,
+        -240
+      ],
+      "id": "2fd00dfb-6da0-4380-91b9-b7695a4ccc00",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {
+          "webSearch": {
+            "searchContextSize": "medium"
+          }
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1416,
+        -8
+      ],
+      "id": "4ae8e7a4-3234-4c04-bc3e-77485ba625d8",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "zYskn9b9Rc1l37CO",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  let raw = item.json.output ?? '';\n  let parsed = {};\n  let parseError = false;\n\n  try {\n    // Strip code fences in case the model adds them despite instructions\n    const cleaned = String(raw)\n      .replace(/```json|```/gi, '')\n      .trim();\n\n    // Fall back to the first {...} block if extra text surrounds the JSON\n    const match = cleaned.match(/\\{[\\s\\S]*\\}/);\n    parsed = JSON.parse(match ? match[0] : cleaned);\n  } catch (e) {\n    parseError = true;\n  }\n\n  let url = (parsed.faculty_directory_url || '').trim();\n\n  // Only accept absolute http(s) URLs\n  if (!/^https?:\\/\\/\\S+$/i.test(url)) {\n    url = '';\n  }\n\n  results.push({\n    json: {\n      university: parsed.university || '',\n      department: parsed.department || '',\n      faculty_directory_url: url,\n      has_url: url !== '',\n      source: parsed.source || 'none',\n      confidence: parsed.confidence || 'low',\n      reason: parsed.reason || '',\n      parse_error: parseError\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        -240
+      ],
+      "id": "1c82f87a-794a-46a5-8f33-d99c4b7f9a1e",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "19Vg81Jmtx60UVgL87rWidiuSv9Z0HIwz8DjjZcBnTi0",
+          "mode": "list",
+          "cachedResultName": "Uni List n8n test",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19Vg81Jmtx60UVgL87rWidiuSv9Z0HIwz8DjjZcBnTi0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Uni List",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19Vg81Jmtx60UVgL87rWidiuSv9Z0HIwz8DjjZcBnTi0/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Loop Over Items').item.json.row_number }}",
+            "Faculty Directory": "={{ $json.faculty_directory_url }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "University Name",
+              "displayName": "University Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Faculty Directory",
+              "displayName": "Faculty Directory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2144,
+        -240
+      ],
+      "id": "17048aa3-fa60-42b7-bd76-32ab2cc10c7e",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Agent",
+        "prompt": "=You are extracting the faculty list of one university department.\n\nUniversity: {{ $('Code in JavaScript').item.json.university }}\nDepartment: {{ $('Code in JavaScript').item.json.department }}\nStarting URL (official faculty directory): {{ $('Code in JavaScript').item.json.faculty_directory_url }}\n\nGOAL\nReturn one record for every faculty member of the department above, with these fields: name, role, department, email, university_webpage, personal_website, research_fields.\n\nHOW TO WORK\n1. Open the starting URL and identify how the directory is structured. Directories differ, so adapt:\n   - Type A: the list page already shows contact details (email, phone, etc.). Extract directly from the list.\n   - Type B: the list page shows only names/photos/titles, and details appear on each person's own profile page. Open every faculty member's profile page and extract the details there.\n   - Mixed: if some entries show details and others do not, open the profile pages only for the incomplete ones.\n   - Research areas often appear only on the profile page (Type B) or only in the list (Type A), so check both places.\n2. Make sure you capture the COMPLETE list:\n   - Follow pagination (\"Next\", page numbers), \"Load more\" buttons, and alphabetical or letter tabs.\n   - If faculty are split across sub-pages or categories (for example Professors, Associate Professors, Assistant Professors, Lecturers/Teaching Faculty), visit all of them.\n   - Do not stop after the first page. Do not return a partial list while more entries remain.\n3. Stay within scope:\n   - Include academic faculty of the specified department only (professors of any rank, and research faculty if listed on the directory; keep the exact title in \"role\").\n   - Exclude administrative or technical staff, postdocs, PhD students, visiting students, and people belonging to other departments.\n   - If the directory covers several departments, keep only the ones matching \"{{ $('If').item.json.department }}\" (including a combined unit such as \"Electrical Engineering and Computer Science\" when the department sits inside it).\n   - Only visit pages on the university's official domain, plus a faculty member's own personal website link if it is listed on their profile.\n4. Field rules:\n   - name: full name as displayed, without honorifics when possible (remove \"Dr.\" and \"Prof.\" but keep the rest).\n   - role: the exact job title shown (for example \"Associate Professor\").\n   - department: the department as stated on the page; if absent, use \"{{ $('If').item.json.department }}\".\n   - email: the email address shown. If it is obfuscated (for example \"name [at] uni [dot] edu\"), convert it to a normal address. If no email is shown, use an empty string.\n   - university_webpage: the URL of the person's profile page on the university site (the page you opened for Type B, or the profile link from the list for Type A). If none exists, use an empty string.\n   - personal_website: the person's personal or lab website if it is linked on their profile or in the list. Do not use Google Scholar, LinkedIn, X/Twitter, or GitHub links here. If none, use an empty string.\n   - research_fields: the person's research areas, fields, interests, topics, or specializations, whatever the page calls them (for example \"Research Interests\", \"Research Areas\", \"Fields\", \"Specializations\", \"Expertise\", \"Focus\"). Put all of them into this single field as a comma-separated list, for example \"Machine Learning, Computer Vision, Robotics\". Copy the terms as written on the page. Do not invent, infer, or summarize from publication titles. If a listed topic is part of a short sentence, extract only the topic names. If nothing is stated, use an empty string.\n5. Accuracy:\n   - Never guess, infer, or fabricate emails, names, or URLs. If a value is not on the pages you visited, return an empty string.\n   - Do not invent an email from a pattern such as firstname.lastname@domain.\n   - Do not duplicate people. If the same person appears twice, return one record.\n   - URLs must be absolute (starting with https://).\n\nOUTPUT\nReturn only the structured data matching the provided schema. No commentary.",
+        "specifyUrls": true,
+        "urls": "={{ $('Update row in sheet').item.json['Faculty Directory'] }}",
+        "schemaType": "manual",
+        "schema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"faculty\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"name\": { \"type\": \"string\" },\n          \"role\": { \"type\": \"string\" },\n          \"department\": { \"type\": \"string\" },\n          \"email\": { \"type\": \"string\" },\n          \"university_webpage\": { \"type\": \"string\" },\n          \"personal_website\": { \"type\": \"string\" },\n          \"research_fields\": { \"type\": \"string\" }\n        },\n        \"required\": [\"name\"]\n      }\n    }\n  },\n  \"required\": [\"faculty\"]\n}",
+        "requestOptions": {}
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawl",
+      "typeVersion": 1.1,
+      "position": [
+        3040,
+        -240
+      ],
+      "id": "ab7ab655-2565-4cb5-94e3-18870e0ff909",
+      "name": "Extract data with AI agent",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "gJxpOrYhXKk7pBob",
+          "name": "Firecrawl account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const clean = (v) => String(v ?? '').replace(/\\s+/g, ' ').trim();\nconst cleanRole = (v) => clean(v).replace(/[;,\\s]+$/, ''); // strips stray trailing \";\" or \",\"\n\nconst rows = [];\nconst seen = new Set();\n\nfor (const item of $input.all()) {\n  const faculty = item.json?.data?.faculty ?? item.json?.faculty ?? [];\n\n  for (const p of faculty) {\n    const name = clean(p.name);\n    if (!name) continue;\n\n    // De-duplicate by email, falling back to name\n    const key = (clean(p.email) || name).toLowerCase();\n    if (seen.has(key)) continue;\n    seen.add(key);\n\n    rows.push({\n      json: {\n        'Name': name,\n        'Role': cleanRole(p.role),\n        'Dept': clean(p.department),\n        'Email': clean(p.email).toLowerCase(),\n        'Uni Webpage': clean(p.university_webpage),\n        'Personal Website': clean(p.personal_website),\n        'Research Fields': clean(p.research_fields)\n      }\n    });\n  }\n}\n\nreturn rows;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3264,
+        -240
+      ],
+      "id": "416098dd-00c1-4fe8-87a1-d1d23cd234f2",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": {
+          "__rl": true,
+          "value": "19Vg81Jmtx60UVgL87rWidiuSv9Z0HIwz8DjjZcBnTi0",
+          "mode": "list",
+          "cachedResultName": "Uni List n8n test",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19Vg81Jmtx60UVgL87rWidiuSv9Z0HIwz8DjjZcBnTi0/edit?usp=drivesdk"
+        },
+        "title": "={{ $('If1').item.json['University Name'] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2368,
+        -240
+      ],
+      "id": "7bf60df6-5463-4f04-ba30-c3c1a55054a0",
+      "name": "Create sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "36daba14-57b2-4f44-b8c3-9a40bc9c44c6",
+              "name": "headers",
+              "value": "[\"Name\", \"Role\", \"Dept\", \"Email\", \"Uni Webpage\", \"Personal Website\", \"Research Fields\"]",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        2592,
+        -240
+      ],
+      "id": "35de56e1-30cb-4b09-ba19-aabc907a44fb",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/19Vg81Jmtx60UVgL87rWidiuSv9Z0HIwz8DjjZcBnTi0:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  requests: [\n    {\n      updateCells: {\n        range: {\n          sheetId: $('Create sheet').item.json.sheetId,\n          startRowIndex: 0,\n          endRowIndex: 1,\n          startColumnIndex: 0,\n          endColumnIndex: 7\n        },\n        rows: [{\n          values: ['Name','Role','Dept','Email','Uni Webpage','Personal Website', 'Research Fields'].map(h => ({\n            userEnteredValue: { stringValue: h },\n            userEnteredFormat: { textFormat: { bold: true } }\n          }))\n        }],\n        fields: 'userEnteredValue,userEnteredFormat.textFormat.bold'\n      }\n    },\n    {\n      updateSheetProperties: {\n        properties: {\n          sheetId: $('Create sheet').item.json.sheetId,\n          gridProperties: { frozenRowCount: 1 }\n        },\n        fields: 'gridProperties.frozenRowCount'\n      }\n    }\n  ]\n}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2816,
+        -240
+      ],
+      "id": "72ab61ab-2277-4c17-b242-21112a89a01c",
+      "name": "HTTP Request",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        3488,
+        -112
+      ],
+      "id": "f84c006a-98cc-48de-945b-467152cc98ad",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "19Vg81Jmtx60UVgL87rWidiuSv9Z0HIwz8DjjZcBnTi0",
+          "mode": "list",
+          "cachedResultName": "Uni List n8n test",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19Vg81Jmtx60UVgL87rWidiuSv9Z0HIwz8DjjZcBnTi0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Create sheet').item.json.sheetId }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.Name }}",
+            "Role": "={{ $json.Role }}",
+            "Dept": "={{ $json.Dept }}",
+            "Email": "={{ $json.Email }}",
+            "Uni Webpage": "={{ $json['Uni Webpage'] }}",
+            "Personal Website": "={{ $json['Personal Website'] }}",
+            "Research Fields": "={{ $json['Research Fields'] }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Role",
+              "displayName": "Role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Dept",
+              "displayName": "Dept",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Uni Webpage",
+              "displayName": "Uni Webpage",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Personal Website",
+              "displayName": "Personal Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Research Fields",
+              "displayName": "Research Fields",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3712,
+        -112
+      ],
+      "id": "7171bd98-d6ad-4822-a209-eeb8276c355b",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b67ece3c-c19e-4edb-89b3-b09830c80bf5",
+              "leftValue": "={{ $json['Faculty Directory'] }}",
+              "rightValue": "\"\"",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        -240
+      ],
+      "id": "158c7d07-a16f-4278-a3f1-ee0cc61190e8",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b30dec5b-5f48-4481-a289-efeea2b0a259",
+              "leftValue": "={{ $json.has_url }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1920,
+        -240
+      ],
+      "id": "008d0c6a-b2ae-4ea8-a26a-b07681b6d6c5",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "content": "## University Faculty Info Extraction\n\n**Purpose:** To find the official faculty directory and extract every faculty member's details into a dedicated tab for each university in the \"Uni List\" sheet.\n\n\n**Flow**\n1. **Read & loop:** Reads universities from Google Sheets and processes them one by one. The target department is set in the *Edit Fields* node.\n2. **Find directory link:** Tavily searches for the department's faculty page. An AI agent (with web search as a fallback) picks the official faculty directory URL and returns it as JSON. Rows with no valid URL are skipped.\n3. **Save link:** The directory URL is written back to the university's row in the list.\n4. **Create tab:** A new sheet tab named after the university is created, and a bold, frozen header row is added through the Google Sheets API.\n5. **Extract faculty:** The Firecrawl Agent opens the directory. If the list lacks contact details, it visits each professor's profile page. It returns name, role, department, email, university page, personal website, and research fields.\n6. **Write rows:** A Code node splits and de-duplicates the results, and each professor is appended as a row in the university's tab.\n\n\n**Output columns:** Name | Role | Dept | Email | Uni Webpage | Personal Website | Research Fields\n\n\n**Notes**\n- Change the department in *Edit Fields*.\n- A Firecrawl credit cap limits cost per university.\n- Fields not found on the page are left empty, never guessed.",
+        "height": 544,
+        "width": 896
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        160,
+        -880
+      ],
+      "typeVersion": 1,
+      "id": "6a55e908-dde0-4498-9923-2b3cb9d37261",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Create sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract data with AI agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create sheet": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Extract data with AI agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Search",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "6d6b0ca6-9964-42e4-aa34-7e2c261edcf1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d5289254a43d6bca36c8ee8dbf281f43de068a5ccd6c63ac471fb234fd2b6ff0"
+  },
+  "nodeGroups": [],
+  "id": "bPlBooYG7Zrvaaul",
+  "tags": []
+}
