@@ -1,0 +1,1276 @@
+{
+  "name": "Office AI Assistant",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        3776,
+        832
+      ],
+      "id": "d6d821df-1ca6-4a52-9691-2928617ad1ba",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "70516cce-49d8-4d2f-a4cf-0757b4629826",
+              "name": "chatInput",
+              "value": "=Today is {{ $now.format('cccc, dd LLLL yyyy') }} and the time is {{ $now.format('HH:mm') }} ({{ $now.zoneName }}).\n\nPrepare my daily briefing. Use your tools to collect real data. Do not guess or invent anything. Write in a professional, courteous and concise tone.\n\n1) EMAILS - Search my unread emails from the last 24 hours (since {{ $now.minus({ hours: 24 }).toISO() }}) using the Gmail search query: is:unread newer_than:1d -category:promotions -category:social. Sort them from OLDEST to NEWEST by the date and time they were sent, so the most recent unread email appears last. For each email provide:\n- Sender: the sender's name only (no email address)\n- Subject\n- Sent: date and time in my local timezone, formatted like \"20 Oct 2026, 14:35\"\n- Summary: one short sentence\nIf there are no emails, write only: \"No unread emails from the last 24 hours.\" and nothing else in this section.\n\n2. EVENTS - Get all my calendar events today. List them in chronological order, showing the event name, time slot, and location if available. Use exactly these formats:\n\n* Event Name - HH:MM - HH:MM - Location: Event Location\n* Event Name - HH:MM - HH:MM\n* All-day Event Name - All day\n\nInclude the location exactly as provided by Google Calendar. If no location is available, omit the entire \" - Location: ...\" portion. For timed events, use 24-hour time in HH:MM format. For all-day events, use \"All day\" instead of a time slot. Do not mention attendees, overlaps or free time. If there are no events, write only: \"No events for today.\"\n\n3) TASKS - Get my open (not completed) tasks that are due today or overdue. List them in order of due date, showing the task name, due date when available, and due time if available. Preserve the task's due time when one exists; do not invent a time if none is provided. Format examples:\n- Submit report - Due: 20 Oct 2026, 14:30\n- Review document - Due: 20 Oct 2026\n\nTreat a due date as a calendar date when determining whether a task is due today or overdue, so a task due today is not overdue just because its time has passed. If there are no tasks, write only: \"No tasks today.\"\n\nRules: This is read-only. Do not send emails, create drafts, or change or delete any event or task. Do not add a summary, priorities, recommendations or any extra commentary. If a tool fails, state which one in a single sentence. Format as plain text with the section headings EMAILS, EVENTS and TASKS in capital letters, hyphen bullets for events and tasks, and no markdown symbols such as ** or #. Begin the response with the line: Daily Briefing - {{ $now.format('dd LLL yyyy') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        4000,
+        832
+      ],
+      "id": "a234575e-8213-42b8-89bf-578537a3e3d6",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        5568,
+        928
+      ],
+      "id": "bea74623-289a-4f10-a641-2d3ad76d52bf",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        4232,
+        1160
+      ],
+      "id": "a1f5a0f1-4a12-4b3e-8fc0-20c5566b75d2",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "zYskn9b9Rc1l37CO",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "fahmid267@gmail.com",
+          "mode": "list",
+          "cachedResultName": "fahmid267@gmail.com"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('attendees0_Attendees', ``, 'string') }}"
+          ],
+          "location": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Location', ``, 'string') }}",
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Summary', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        4488,
+        1160
+      ],
+      "id": "c007647c-c9d1-45db-9189-461a09a11f7c",
+      "name": "Create an event in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "qnTmo9ezUpkw06B9",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "fahmid267@gmail.com",
+          "mode": "list",
+          "cachedResultName": "fahmid267@gmail.com"
+        },
+        "eventId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Event_ID', ``, 'string') }}",
+        "options": {
+          "sendUpdates": "all"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        4616,
+        1160
+      ],
+      "id": "25870a4a-42fb-4c51-a001-fe6fc4241a0d",
+      "name": "Delete an event in Google Calendar1",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "qnTmo9ezUpkw06B9",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": "fahmid267@gmail.com"
+        },
+        "returnAll": true,
+        "timeMin": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('After', ``, 'string') }}",
+        "timeMax": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Before', ``, 'string') }}",
+        "options": {
+          "orderBy": "startTime"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        4744,
+        1160
+      ],
+      "id": "0d52b7dd-783b-4564-ba9b-0aecdf556e7e",
+      "name": "Get many events in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "qnTmo9ezUpkw06B9",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "fahmid267@gmail.com",
+          "mode": "list",
+          "cachedResultName": "fahmid267@gmail.com"
+        },
+        "eventId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Event_ID', ``, 'string') }}",
+        "updateFields": {
+          "location": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Location', ``, 'string') }}",
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Summary', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        4872,
+        1160
+      ],
+      "id": "8fbc2b7e-3103-46f6-aa60-0485735a3c12",
+      "name": "Update an event in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "qnTmo9ezUpkw06B9",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Return_All', ``, 'boolean') }}",
+        "filters": {
+          "readStatus": "unread",
+          "receivedAfter": "={{ $now.minus({ hours: 24 }).toISO() }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        5000,
+        1160
+      ],
+      "id": "98f8f69e-d9bf-4296-8ac3-c141130a0f5e",
+      "name": "Get many messages in Gmail",
+      "webhookId": "12d35845-61d4-4b2a-acb1-8fc27677f5b6",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "QCxuF4cKdQWeb8t8",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('To', ``, 'string') }}",
+        "subject": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Subject', ``, 'string') }}",
+        "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message', ``, 'string') }}",
+        "options": {
+          "appendAttribution": false,
+          "bccList": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('BCC', ``, 'string') }}",
+          "ccList": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('CC', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        5128,
+        1160
+      ],
+      "id": "33fb4f6d-c70c-4588-b6bf-91ee62b67e08",
+      "name": "Send a message in Gmail",
+      "webhookId": "3cc26d47-02b8-4cd8-bd54-a08b222be265",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "QCxuF4cKdQWeb8t8",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Subject', ``, 'string') }}",
+        "emailType": "html",
+        "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        5256,
+        1160
+      ],
+      "id": "70ee9144-e8b8-42f9-9356-6a065a61ccae",
+      "name": "Create a draft in Gmail",
+      "webhookId": "3cc26d47-02b8-4cd8-bd54-a08b222be265",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "QCxuF4cKdQWeb8t8",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "task": "MDA1NTg0MzAwODQwOTczNzk3Mzc6MDow",
+        "taskId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Task_ID', ``, 'string') }}"
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        5384,
+        1160
+      ],
+      "id": "c3b67c2e-758c-4b65-aab2-5bb90b658b02",
+      "name": "Delete a task in Google Tasks",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "BOMjpdugzGWdzGsB",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "task": "MDA1NTg0MzAwODQwOTczNzk3Mzc6MDow",
+        "taskId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Task_ID', ``, 'string') }}"
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        5512,
+        1160
+      ],
+      "id": "67e60174-2d63-4c43-b94c-e0d2b0b15f9e",
+      "name": "Get a task in Google Tasks",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "BOMjpdugzGWdzGsB",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "task": "MDA1NTg0MzAwODQwOTczNzk3Mzc6MDow",
+        "returnAll": true,
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        5640,
+        1160
+      ],
+      "id": "1666d5de-d58e-4295-a32a-0a30142ce0fb",
+      "name": "Get many tasks in Google Tasks",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "BOMjpdugzGWdzGsB",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "task": "MDA1NTg0MzAwODQwOTczNzk3Mzc6MDow",
+        "taskId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Task_ID', ``, 'string') }}",
+        "updateFields": {
+          "completed": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Completion_Date', ``, 'string') }}",
+          "dueDate": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Due_Date', ``, 'string') }}",
+          "title": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Title', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        5768,
+        1160
+      ],
+      "id": "50191ff8-b4c6-4880-acfe-55f54c4c1b3a",
+      "name": "Update a task in Google Tasks",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "BOMjpdugzGWdzGsB",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Doc_ID_or_URL', ``, 'string') }}"
+      },
+      "type": "n8n-nodes-base.googleDocsTool",
+      "typeVersion": 2,
+      "position": [
+        5896,
+        1160
+      ],
+      "id": "bdc12b15-a8d2-4b2e-a01c-a154b07545cb",
+      "name": "Get a document in Google Docs",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "xEJF2GtEKBrfk6yA",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Document', ``, 'string') }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Sheet', ``, 'string') }}",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "chatInput",
+              "displayName": "chatInput",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Document",
+              "displayName": "Document",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Sheet",
+              "displayName": "Sheet",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "toolCallId",
+              "displayName": "toolCallId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "useAppend": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        6024,
+        1160
+      ],
+      "id": "aaee1669-48b7-42f3-8715-8f1fea10e3c0",
+      "name": "Append row in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Document', ``, 'string') }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Sheet', ``, 'string') }}",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        6152,
+        1160
+      ],
+      "id": "fd3c6cfc-5caa-40b0-add6-d65188ff56eb",
+      "name": "Clear sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Document', ``, 'string') }}",
+          "mode": "id"
+        },
+        "title": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Title', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        6280,
+        1160
+      ],
+      "id": "bdd33ed7-cb4a-4785-8980-1618707040e6",
+      "name": "Create sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "remove",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Document', ``, 'string') }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Sheet', ``, 'string') }}",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        6408,
+        1160
+      ],
+      "id": "fd5878ef-4771-4032-8191-930786e96a8c",
+      "name": "Delete sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Document', ``, 'string') }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Sheet', ``, 'string') }}",
+          "mode": "id",
+          "cachedResultName": "",
+          "cachedResultUrl": ""
+        },
+        "startIndex": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start_Row_Number', ``, 'number') }}",
+        "numberToDelete": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Number_of_Rows_to_Delete', ``, 'number') }}"
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        6536,
+        1160
+      ],
+      "id": "d010b15b-e93d-4d8f-ade9-3a6bb18f8dbf",
+      "name": "Delete rows or columns from sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Document', ``, 'string') }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Sheet', ``, 'string') }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        6664,
+        1160
+      ],
+      "id": "bba5d0a8-08eb-485e-b880-f56dd75294a7",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Document', ``, 'string') }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Sheet', ``, 'string') }}",
+          "mode": "id",
+          "cachedResultName": "",
+          "cachedResultUrl": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('row_number__using_to_match_', ``, 'number') }}",
+            "action": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('action', ``, 'string') }}",
+            "sessionId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('sessionId', ``, 'string') }}",
+            "chatInput": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('chatInput', ``, 'string') }}",
+            "Document": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Document', ``, 'string') }}",
+            "Sheet": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Sheet', ``, 'string') }}",
+            "toolCallId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('toolCallId', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "chatInput",
+              "displayName": "chatInput",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Document",
+              "displayName": "Document",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sheet",
+              "displayName": "Sheet",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "toolCallId",
+              "displayName": "toolCallId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        6792,
+        1160
+      ],
+      "id": "40ff3f54-a9cd-4fc3-adc3-9411433a4727",
+      "name": "Update row in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Qmghy5xW8KfKXw9T",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "fahmid20017@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        7920,
+        928
+      ],
+      "id": "da7d0e9f-6552-4fe0-936f-a7496dffc59a",
+      "name": "Send a message",
+      "webhookId": "cd8cae34-1c8f-4301-a8bf-97efb92ef12b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "QCxuF4cKdQWeb8t8",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        4000,
+        1024
+      ],
+      "id": "df1a2775-81b0-4603-8999-8f745fcc888d",
+      "name": "When chat message received",
+      "webhookId": "0ddffce7-0bbb-4a6f-acd0-abe832ceaf09"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "office-ai-assistant",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        4360,
+        1160
+      ],
+      "id": "3492ff93-db39-4fa9-9428-c7dd1e0e2409",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e42daeef-e844-42cb-ad11-ef495dd73c96",
+              "leftValue": "={{ $('Edit Fields').isExecuted }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        7248,
+        928
+      ],
+      "id": "fb58460a-02cb-4551-9b1e-35d6621e66d3",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "task": "MDA1NTg0MzAwODQwOTczNzk3Mzc6MDow",
+        "title": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Title', ``, 'string') }}",
+        "additionalFields": {
+          "completed": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Completion_Date', ``, 'string') }}",
+          "dueDate": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Due_Date', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleTasksTool",
+      "typeVersion": 1,
+      "position": [
+        6920,
+        1160
+      ],
+      "id": "da148720-16a1-4a9d-afc0-86eec87b69fb",
+      "name": "Create a task in Google Tasks",
+      "credentials": {
+        "googleTasksOAuth2Api": {
+          "id": "BOMjpdugzGWdzGsB",
+          "name": "Google Tasks account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Search_Query', ``, 'string') }}",
+        "returnAll": true,
+        "filter": {
+          "driveId": {
+            "mode": "list",
+            "value": "My Drive"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTool",
+      "typeVersion": 3,
+      "position": [
+        7048,
+        1160
+      ],
+      "id": "4e481581-5f70-4008-9c73-11a0192e007f",
+      "name": "Search files and folders in Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "qMx1iXeYbtkYw4sn",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parses the daily briefing (sections EMAILS / EVENTS / TASKS) into structured JSON.\n// Input: $json.output  |  Mode: Run Once for Each Item\nconst raw = String($json.output ?? '');\n\nconst MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };\nconst pad = (n) => String(n).padStart(2, '0');\n\n// \"20 Oct 2026\" -> \"2026-10-20\"\nfunction toIsoDate(s) {\n  const m = String(s ?? '').match(/(\\d{1,2})\\s+([A-Za-z]{3})[a-z]*\\.?,?\\s+(\\d{4})/);\n  if (!m || !MONTHS[m[2].toLowerCase()]) return null;\n  return `${m[3]}-${pad(MONTHS[m[2].toLowerCase()])}-${pad(m[1])}`;\n}\n\n// \"20 Oct 2026, 14:35\" -> { date: \"2026-10-20\", time: \"14:35\" }\nfunction parseSent(s) {\n  const date = toIsoDate(s);\n  const t = String(s ?? '').match(/(\\d{1,2}):(\\d{2})/);\n  return { date, time: t ? `${pad(t[1])}:${t[2]}` : null };\n}\n\nconst out = {\n  title: null,\n  date: null,\n  emails: { none: false, count: 0, items: [] },\n  events: { none: false, count: 0, items: [] },\n  tasks: { none: false, count: 0, items: [] },\n  unparsed: [],\n  raw,\n};\n\nlet section = null;\nlet email = null;        // email currently being built\nlet lastField = null;    // for wrapped lines inside an email\n\nconst flushEmail = () => {\n  if (email) out.emails.items.push(email);\n  email = null; lastField = null;\n};\n\nfor (const lineRaw of raw.split(/\\r?\\n/)) {\n  const line = lineRaw.trim();\n  if (!line) { continue; }\n\n  // Title line\n  const title = line.match(/^Daily Briefing\\s*-\\s*(.+)$/i);\n  if (title && !section) {\n    out.title = line;\n    out.date = toIsoDate(title[1]);\n    continue;\n  }\n\n  const head = line.match(/^(EMAILS|EVENTS|TASKS)$/);\n  if (head) { flushEmail(); section = head[1]; continue; }\n\n  switch (section) {\n    case 'EMAILS': {\n      if (/^no unread emails/i.test(line)) { out.emails.none = true; break; }\n      const f = line.match(/^(Sender|Subject|Sent|Summary)\\s*:\\s*(.*)$/i);\n      if (f) {\n        const key = f[1].toLowerCase();\n        if (key === 'sender') { flushEmail(); email = { senderName: '', subject: '', sentRaw: '', sentDate: null, sentTime: null, summary: '' }; }\n        if (!email) { email = { senderName: '', subject: '', sentRaw: '', sentDate: null, sentTime: null, summary: '' }; }\n        const val = f[2].trim();\n        if (key === 'sender') email.senderName = val;\n        else if (key === 'subject') email.subject = val;\n        else if (key === 'sent') { email.sentRaw = val; const p = parseSent(val); email.sentDate = p.date; email.sentTime = p.time; }\n        else if (key === 'summary') email.summary = val;\n        lastField = key;\n      } else if (email && lastField) {\n        // wrapped continuation of the previous field\n        if (lastField === 'summary') email.summary += ' ' + line;\n        else if (lastField === 'subject') email.subject += ' ' + line;\n        else out.unparsed.push({ section, line });\n      } else {\n        out.unparsed.push({ section, line });\n      }\n      break;\n    }\n\n    case 'EVENTS': {\n      if (/^no events/i.test(line)) { out.events.none = true; break; }\n\n      const timed = line.match(/^[-•*]\\s*(.+?)\\s+-\\s+(\\d{1,2}:\\d{2})\\s*[-–]\\s*(\\d{1,2}:\\d{2})(?:\\s+-\\s+Location:\\s*(.+))?$/i);\n      const allDay = line.match(/^[-•*]\\s*(.+?)\\s+-\\s+all[ -]day$/i);\n\n      if (timed) {\n        out.events.items.push({\n          name: timed[1].trim(),\n          start: timed[2],\n          end: timed[3],\n          allDay: false,\n          timeSlot: `${timed[2]} - ${timed[3]}`,\n          location: timed[4]?.trim() || null\n        });\n      } else if (allDay) {\n        out.events.items.push({\n          name: allDay[1].trim(),\n          start: null,\n          end: null,\n          allDay: true,\n          timeSlot: 'All day',\n          location: null\n        });\n      } else out.unparsed.push({ section, line });\n      break;\n    }\n\n    case 'TASKS': {\n      if (/^no tasks/i.test(line)) { out.tasks.none = true; break; }\n\n      const t = line.match(/^[-•*]\\s*(.+?)(?:\\s+-\\s+Due\\s*:\\s*(.+))?$/i);\n\n      if (t) {\n        const due = t[2] ? t[2].trim() : null;\n        const timeMatch = due?.match(/\\b(\\d{1,2}:\\d{2})\\b/);\n\n        out.tasks.items.push({\n          name: t[1].trim(),\n          dueRaw: due,\n          dueDate: due ? toIsoDate(due) : null,\n          dueTime: timeMatch ? timeMatch[1] : null\n        });\n      } else out.unparsed.push({ section, line });\n      break;\n    }\n\n    default:\n      out.unparsed.push({ section: null, line });\n  }\n}\n\nflushEmail();\n\n// Guarantee oldest -> newest for emails\nconst key = (e) => (e.sentDate && e.sentTime) ? `${e.sentDate}T${e.sentTime}` : '';\nout.emails.items = out.emails.items\n  .map((e, i) => ({ e, i }))\n  .sort((a, b) => (key(a.e) < key(b.e) ? -1 : key(a.e) > key(b.e) ? 1 : a.i - b.i))\n  .map(x => x.e);\n\nout.emails.count = out.emails.items.length;\nout.events.count = out.events.items.length;\nout.tasks.count = out.tasks.items.length;\nif (out.emails.count) out.emails.none = false;\nif (out.events.count) out.events.none = false;\nif (out.tasks.count) out.tasks.none = false;\n\nreturn { json: out };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7472,
+        928
+      ],
+      "id": "b1dd9c58-6ffe-4211-a39e-dbf54fa041b5",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\nconst escapeHtml = (value) =>\n  String(value ?? '')\n    .replace(/&/g, '&amp;')\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;')\n    .replace(/\"/g, '&quot;')\n    .replace(/'/g, '&#39;');\n\nconst sectionStyle = `\n  font-family: Arial, Helvetica, sans-serif;\n  color: #202124;\n`;\n\nconst headingStyle = `\n  font-size: 17px;\n  font-weight: 600;\n  color: #202124;\n  margin: 24px 0 12px;\n  padding-bottom: 8px;\n  border-bottom: 1px solid #dadce0;\n`;\n\nconst mutedStyle = `\n  color: #5f6368;\n  font-size: 13px;\n`;\n\nconst cardStyle = `\n  padding: 12px 14px;\n  margin-bottom: 10px;\n  border: 1px solid #e0e3e7;\n  border-radius: 8px;\n`;\n\nfunction renderEmails() {\n  if (data.emails.none || data.emails.items.length === 0) {\n    return `<p style=\"${mutedStyle}\">No unread emails from the last 24 hours.</p>`;\n  }\n\n  return data.emails.items.map(email => `\n    <div style=\"${cardStyle}\">\n      <div style=\"font-weight:600; font-size:14px;\">\n        ${escapeHtml(email.subject)}\n      </div>\n      <div style=\"margin-top:5px; font-size:13px;\">\n        ${escapeHtml(email.senderName)}\n        <span style=\"${mutedStyle}\">\n          &nbsp;·&nbsp; ${escapeHtml(email.sentRaw)}\n        </span>\n      </div>\n      <div style=\"margin-top:8px; font-size:13px; line-height:1.6;\">\n        ${escapeHtml(email.summary)}\n      </div>\n    </div>\n  `).join('');\n}\n\nfunction renderEvents() {\n  if (data.events.none || data.events.items.length === 0) {\n    return `<p style=\"${mutedStyle}\">No events for today.</p>`;\n  }\n\n  return `\n    <ul style=\"padding-left:20px; margin-top:0; line-height:1.9; font-size:14px;\">\n      ${data.events.items.map(event => `\n        <li>\n          <b>${escapeHtml(event.name)}</b>\n          <span style=\"${mutedStyle}\">\n            — ${escapeHtml(event.timeSlot)}${event.location ? ` | Location: ${escapeHtml(event.location)}` : ''}\n          </span>\n        </li>\n      `).join('')}\n    </ul>\n  `;\n}\n\nfunction renderTasks() {\n  if (data.tasks.none || data.tasks.items.length === 0) {\n    return `<p style=\"${mutedStyle}\">No tasks today.</p>`;\n  }\n\n  return `\n    <ul style=\"padding-left:20px; margin-top:0; line-height:1.9; font-size:14px;\">\n      ${data.tasks.items.map(task => `\n        <li>\n          <b>${escapeHtml(task.name)}</b>\n          ${task.dueRaw\n            ? `<span style=\"${mutedStyle}\"> — Due: ${escapeHtml(task.dueRaw)}</span>`\n            : ''}\n        </li>\n      `).join('')}\n    </ul>\n  `;\n}\n\nconst formattedDate = data.date\n  ? new Date(`${data.date}T12:00:00Z`).toLocaleDateString('en-GB', {\n      day: '2-digit',\n      month: 'short',\n      year: 'numeric',\n      timeZone: 'UTC',\n    })\n  : '';\n\nconst subject = `Daily Briefing - ${formattedDate}`;\n\nconst html = `\n<!DOCTYPE html>\n<html>\n<body style=\"margin:0; padding:0; background:#f4f6f8;\">\n  <div style=\"\n    max-width:680px;\n    margin:24px auto;\n    background:#ffffff;\n    border:1px solid #e0e3e7;\n    border-radius:12px;\n    overflow:hidden;\n    ${sectionStyle}\n  \">\n    <div style=\"\n      padding:24px 28px;\n      background:#1a365d;\n      color:#ffffff;\n    \">\n      <div style=\"font-size:23px; font-weight:600;\">\n        Daily Briefing\n      </div>\n      <div style=\"font-size:14px; margin-top:7px; color:#e2e8f0;\">\n        ${escapeHtml(formattedDate)}\n      </div>\n    </div>\n\n    <div style=\"padding:12px 28px 28px; ${sectionStyle}\">\n\n      <h2 style=\"${headingStyle}\">Emails</h2>\n      ${renderEmails()}\n\n      <h2 style=\"${headingStyle}\">Today's Events</h2>\n      ${renderEvents()}\n\n      <h2 style=\"${headingStyle}\">Tasks Due</h2>\n      ${renderTasks()}\n\n    </div>\n\n    <div style=\"\n      padding:14px 28px;\n      background:#f8f9fa;\n      border-top:1px solid #e0e3e7;\n      font-size:12px;\n      color:#5f6368;\n    \">\n      Daily Briefing · Automatically generated\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    subject,\n    html,\n  },\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7696,
+        928
+      ],
+      "id": "99bb0e0b-aadc-4c5b-8cf1-367983d400b0",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "content": "## Office AI Assistant\n\nAn AI assistant for Gmail, Google Calendar, Google Tasks, Google Docs, Google Sheets and Google Drive. It runs on GPT-5-mini with short-term memory.\n\n\n**Two ways to use it**\n- **Chat:** Talk to the assistant in the n8n chat window. It can read and draft emails, manage calendar events and tasks, read documents and log notes to sheets.\n- **Daily briefing (manual run):** Edit Fields sets a prompt for the agent, which pulls the last 24 hours of unread emails (oldest first), today's events and today's tasks. A parser Code node turns the result into structured data, and a second Code node formats it as an HTML email. Gmail then sends it to your inbox.\n\n\n**Flow:** Manual trigger → Edit Fields (prompt) → AI Agent → If (manual run only) → parse → build HTML → send email.\n\n\n**Setup:** Select your credentials (OpenAI, Google, Gmail) on any node showing a warning. Replace the Google Sheet and Task list IDs with your own.",
+        "height": 448,
+        "width": 544
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        4480,
+        224
+      ],
+      "typeVersion": 1,
+      "id": "d3f9aa41-c071-4917-991b-96dabf26024a",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete an event in Google Calendar1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages in Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message in Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a draft in Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a task in Google Tasks": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a task in Google Tasks": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many tasks in Google Tasks": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a task in Google Tasks": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a document in Google Docs": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete rows or columns from sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a task in Google Tasks": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders in Google Drive": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "09b69af4-3bc3-41c1-ac5a-2bae3e3ea889",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d5289254a43d6bca36c8ee8dbf281f43de068a5ccd6c63ac471fb234fd2b6ff0"
+  },
+  "nodeGroups": [],
+  "id": "08KDOshn9MKrv74l",
+  "tags": []
+}
